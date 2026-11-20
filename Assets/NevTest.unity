@@ -119,11 +119,6 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
---- !u!4 &380143490 stripped
-Transform:
-  m_CorrespondingSourceObject: {fileID: 8666388178140099827, guid: 5aa405eca57aad14ea53775ac6b24a4c, type: 3}
-  m_PrefabInstance: {fileID: 1162265778}
-  m_PrefabAsset: {fileID: 0}
 --- !u!1 &709956562 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 1016405970564212765, guid: 5aa405eca57aad14ea53775ac6b24a4c, type: 3}
@@ -161,55 +156,6 @@ MonoBehaviour:
   m_MinRegionArea: 2
   m_NavMeshData: {fileID: 23800000, guid: 4a161b970ec5f87498d4845cfb619774, type: 2}
   m_BuildHeightMesh: 0
---- !u!1 &1110399371
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1110399373}
-  - component: {fileID: 1110399372}
-  m_Layer: 0
-  m_Name: GoblinManager
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &1110399372
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1110399371}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 15c67b2ebc79b7943aa60cbdbefb0dfc, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::GoblinSpawner
-  goblinPrefab: {fileID: 3261810907387653444, guid: 88b6300712b6e3344bf29c8ad3b86088, type: 3}
-  portal: {fileID: 1193836217}
-  crystal: {fileID: 380143490}
-  goblinsPerWave: 5
-  timeBetweenGoblins: 1.5
---- !u!4 &1110399373
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1110399371}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0.02143, y: 0.015, z: 0.02143}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &1162265778
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -270,11 +216,6 @@ PrefabInstance:
       insertIndex: -1
       addedObject: {fileID: 709956564}
   m_SourcePrefab: {fileID: 100100000, guid: 5aa405eca57aad14ea53775ac6b24a4c, type: 3}
---- !u!4 &1193836217 stripped
-Transform:
-  m_CorrespondingSourceObject: {fileID: 1099977728632500370, guid: 5aa405eca57aad14ea53775ac6b24a4c, type: 3}
-  m_PrefabInstance: {fileID: 1162265778}
-  m_PrefabAsset: {fileID: 0}
 --- !u!1 &1943714467
 GameObject:
   m_ObjectHideFlags: 0
@@ -516,4 +457,3 @@ SceneRoots:
   - {fileID: 1943714470}
   - {fileID: 1977004790}
   - {fileID: 1162265778}
-  - {fileID: 1110399373}
