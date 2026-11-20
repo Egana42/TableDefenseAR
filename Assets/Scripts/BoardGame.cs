@@ -17,15 +17,18 @@ public class BoardGame : MonoBehaviour
     public int towerCost = 20;
     public int goldPerCoin = 10;
     public float coinLifetime = 12f;
+    public float minScale = 0.6f;
+    public float maxScale = 3f;
 
-    enum State { Ready, Playing, Won, Lost }
-    State state = State.Ready;
+    enum State { Setup, Ready, Playing, Won, Lost }
+    State state = State.Setup;
     int crystalHealth;
     int goblinsSpawned;
     int goblinsAlive;
     int gold;
     bool placingTower;
     readonly List<GameObject> towers = new List<GameObject>();
+
     class Coin { public Transform t; public float expireAt; }
     readonly List<Coin> coins = new List<Coin>();
 
@@ -34,7 +37,7 @@ public class BoardGame : MonoBehaviour
         crystalHealth = crystalMaxHealth;
         gold = startGold;
 
-        
+        // Una vez colocado el tablero, que no salgan más al tocar
         var spawner = GameObject.Find("Object Spawner");
         if (spawner != null)
         {
@@ -43,8 +46,55 @@ public class BoardGame : MonoBehaviour
                     mb.enabled = false;
         }
 
-        // Hornear el mapa de navegación en este momento
+        BuildBorder();
+    }
+
+    // ---------- Borde rojo (se adapta al tamaño del suelo) ----------
+
+    void BuildBorder()
+    {
+        Transform floor = transform.Find("Floor");
+        if (floor == null) return;
+
+        Vector3 fs = floor.localScale;
+        Vector3 fp = floor.localPosition;
+        float t = 0.012f;
+        float y = fp.y + fs.y / 2f + t / 2f;
+
+        MakeBorder("Border_N", new Vector3(fp.x, y, fp.z + fs.z / 2f), new Vector3(fs.x + t, t, t));
+        MakeBorder("Border_S", new Vector3(fp.x, y, fp.z - fs.z / 2f), new Vector3(fs.x + t, t, t));
+        MakeBorder("Border_E", new Vector3(fp.x + fs.x / 2f, y, fp.z), new Vector3(t, t, fs.z + t));
+        MakeBorder("Border_W", new Vector3(fp.x - fs.x / 2f, y, fp.z), new Vector3(t, t, fs.z + t));
+    }
+
+    void MakeBorder(string borderName, Vector3 localPos, Vector3 localScale)
+    {
+        // Si había uno hecho a mano, lo reemplazamos
+        Transform old = transform.Find(borderName);
+        if (old != null) { old.name = "old_" + borderName; Destroy(old.gameObject); }
+
+        var b = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        b.name = borderName;
+        Destroy(b.GetComponent<Collider>());
+        b.transform.SetParent(transform, false);
+        b.transform.localPosition = localPos;
+        b.transform.localScale = localScale;
+        b.GetComponent<Renderer>().material.color = Color.red;
+    }
+
+    // ---------- Ajuste del tablero ----------
+
+    void Rescale(float factor)
+    {
+        float ns = Mathf.Clamp(transform.localScale.x * factor, minScale, maxScale);
+        transform.localScale = Vector3.one * ns;
+    }
+
+    void ConfirmBoard()
+    {
+        // Ahora que el tablero está donde debe, se construye el mapa de navegación
         GetComponent<NavMeshSurface>().BuildNavMesh();
+        state = State.Ready;
     }
 
     // ---------- Partida ----------
@@ -97,50 +147,6 @@ public class BoardGame : MonoBehaviour
         CheckWin();
     }
 
-    void SpawnCoin(Vector3 pos)
-    {
-        var c = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-        c.name = "Coin";
-        Destroy(c.GetComponent<Collider>());
-        c.transform.position = new Vector3(pos.x, pos.y + 0.03f, pos.z);
-        c.transform.localScale = new Vector3(0.035f, 0.004f, 0.035f);
-        c.transform.rotation = Quaternion.Euler(90f, 0f, 0f);   
-        c.GetComponent<Renderer>().material.color = new Color(1f, 0.85f, 0.1f);
-        coins.Add(new Coin { t = c.transform, expireAt = Time.time + coinLifetime });
-    }
-
-    bool TryCollectCoin(Ray ray)
-    {
-        Vector3 dir = ray.direction.normalized;
-        for (int i = 0; i < coins.Count; i++)
-        {
-            if (coins[i].t == null) continue;
-            Vector3 toCoin = coins[i].t.position - ray.origin;
-            if (Vector3.Dot(dir, toCoin) <= 0f) continue;                 
-            if (Vector3.Cross(dir, toCoin).magnitude <= 0.05f)            
-            {
-                gold += goldPerCoin;
-                Destroy(coins[i].t.gameObject);
-                coins.RemoveAt(i);
-                return true;
-            }
-        }
-        return false;
-    }
-    void Update()
-    {
-        for (int i = coins.Count - 1; i >= 0; i--)
-        {
-            if (coins[i].t == null) { coins.RemoveAt(i); continue; }
-            if (Time.time >= coins[i].expireAt)
-            {
-                Destroy(coins[i].t.gameObject);
-                coins.RemoveAt(i);
-                continue;
-            }
-            coins[i].t.Rotate(0f, 180f * Time.deltaTime, 0f, Space.World);
-        }
-    }
     void CheckWin()
     {
         if (state == State.Playing && goblinsSpawned >= goblinsPerWave && goblinsAlive <= 0)
@@ -177,6 +183,54 @@ public class BoardGame : MonoBehaviour
         state = State.Ready;
     }
 
+    // ---------- Monedas ----------
+
+    void SpawnCoin(Vector3 pos)
+    {
+        var c = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        c.name = "Coin";
+        Destroy(c.GetComponent<Collider>());
+        c.transform.position = new Vector3(pos.x, pos.y + 0.03f, pos.z);
+        c.transform.localScale = new Vector3(0.035f, 0.004f, 0.035f);
+        c.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
+        c.GetComponent<Renderer>().material.color = new Color(1f, 0.85f, 0.1f);
+        coins.Add(new Coin { t = c.transform, expireAt = Time.time + coinLifetime });
+    }
+
+    bool TryCollectCoin(Ray ray)
+    {
+        Vector3 dir = ray.direction.normalized;
+        for (int i = 0; i < coins.Count; i++)
+        {
+            if (coins[i].t == null) continue;
+            Vector3 toCoin = coins[i].t.position - ray.origin;
+            if (Vector3.Dot(dir, toCoin) <= 0f) continue;
+            if (Vector3.Cross(dir, toCoin).magnitude <= 0.05f)
+            {
+                gold += goldPerCoin;
+                Destroy(coins[i].t.gameObject);
+                coins.RemoveAt(i);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    void Update()
+    {
+        for (int i = coins.Count - 1; i >= 0; i--)
+        {
+            if (coins[i].t == null) { coins.RemoveAt(i); continue; }
+            if (Time.time >= coins[i].expireAt)
+            {
+                Destroy(coins[i].t.gameObject);
+                coins.RemoveAt(i);
+                continue;
+            }
+            coins[i].t.Rotate(0f, 180f * Time.deltaTime, 0f, Space.World);
+        }
+    }
+
     // ---------- Torres ----------
 
     void PlaceTower(Vector3 pos)
@@ -191,7 +245,6 @@ public class BoardGame : MonoBehaviour
         t.transform.localScale = new Vector3(0.06f, 0.04f, 0.06f);
         t.GetComponent<Renderer>().material.color = new Color(0.9f, 0.3f, 0.1f);
 
-        // Los goblins rodean la torre
         var ob = t.AddComponent<NavMeshObstacle>();
         ob.shape = NavMeshObstacleShape.Capsule;
         ob.center = Vector3.zero;
@@ -203,16 +256,37 @@ public class BoardGame : MonoBehaviour
         towers.Add(t);
     }
 
-    void HandleClicks(Rect towerRect, Rect otherRect)
+    // ---------- Toques ----------
+
+    Camera GetCam()
+    {
+        Camera c = Camera.main;
+        if (c == null) c = FindFirstObjectByType<Camera>();
+        return c;
+    }
+
+    void HandleClicks(Rect a, Rect b)
     {
         Event e = Event.current;
         if (e.type != EventType.MouseDown) return;
-        if (state != State.Ready && state != State.Playing) return;
-        if (towerRect.Contains(e.mousePosition) || otherRect.Contains(e.mousePosition)) return;
+        if (a.Contains(e.mousePosition) || b.Contains(e.mousePosition)) return;
+        if (state == State.Won || state == State.Lost) return;
 
         Camera cam = GetCam();
         if (cam == null) return;
         Ray ray = cam.ScreenPointToRay(new Vector3(e.mousePosition.x, Screen.height - e.mousePosition.y, 0f));
+
+        // Fase de ajuste: tocar la mesa mueve el tablero
+        if (state == State.Setup)
+        {
+            Plane plane = new Plane(Vector3.up, transform.position);
+            if (plane.Raycast(ray, out float dist))
+            {
+                Vector3 p = ray.GetPoint(dist);
+                transform.position = new Vector3(p.x, transform.position.y, p.z);
+            }
+            return;
+        }
 
         if (TryCollectCoin(ray)) return;
         if (!placingTower) return;
@@ -228,13 +302,6 @@ public class BoardGame : MonoBehaviour
     }
 
     // ---------- Interfaz ----------
-
-    Camera GetCam()
-    {
-        Camera c = Camera.main;
-        if (c == null) c = FindFirstObjectByType<Camera>();
-        return c;
-    }
 
     void DrawCrystalBar(float s)
     {
@@ -265,6 +332,8 @@ public class BoardGame : MonoBehaviour
 
         var label = new GUIStyle(GUI.skin.label) { fontSize = (int)(52 * s), fontStyle = FontStyle.Bold };
         label.normal.textColor = Color.white;
+        var hint = new GUIStyle(GUI.skin.label) { fontSize = (int)(38 * s), fontStyle = FontStyle.Bold, wordWrap = true };
+        hint.normal.textColor = Color.white;
         var button = new GUIStyle(GUI.skin.button) { fontSize = (int)(46 * s) };
 
         // HUD
@@ -281,12 +350,33 @@ public class BoardGame : MonoBehaviour
 
         GUI.Label(new Rect(30 * s, 100 * s, 600 * s, 70 * s), $"Gold: {gold}", label);
 
-        // Botones
+        // Rectángulos de botones
         float bw = 460 * s, bh = 150 * s;
         var mainRect = new Rect(Screen.width / 2f - bw / 2f, Screen.height - bh - 120 * s, bw, bh);
         var towerRect = new Rect(mainRect.x, mainRect.y - bh - 30 * s, bw, bh);
 
-        HandleClicks(towerRect, mainRect);
+        float cw = 320 * s, gap = 20 * s, ch = 130 * s;
+        float rowW = cw * 3 + gap * 2;
+        var rowRect = new Rect((Screen.width - rowW) / 2f, mainRect.y - ch - 30 * s, rowW, ch);
+
+        HandleClicks(state == State.Setup ? rowRect : towerRect, mainRect);
+
+        if (state == State.Setup)
+        {
+            GUI.Box(new Rect(10 * s, 190 * s, Screen.width - 20 * s, 130 * s), "");
+            GUI.Label(new Rect(30 * s, 200 * s, Screen.width - 60 * s, 120 * s),
+                "Tap the table to move the board. Rotate and resize it, then press OK.", hint);
+
+            if (GUI.Button(new Rect(rowRect.x, rowRect.y, cw, ch), "ROTATE", button))
+                transform.Rotate(0f, 15f, 0f, Space.World);
+            if (GUI.Button(new Rect(rowRect.x + cw + gap, rowRect.y, cw, ch), "SMALLER", button))
+                Rescale(0.9f);
+            if (GUI.Button(new Rect(rowRect.x + 2 * (cw + gap), rowRect.y, cw, ch), "BIGGER", button))
+                Rescale(1.1f);
+            if (GUI.Button(mainRect, "OK", button))
+                ConfirmBoard();
+            return;
+        }
 
         if (state == State.Ready || state == State.Playing)
         {
