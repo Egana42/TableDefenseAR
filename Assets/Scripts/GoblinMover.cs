@@ -5,11 +5,13 @@ using UnityEngine.AI;
 public class GoblinMover : MonoBehaviour
 {
     public Transform target;                      
-    [HideInInspector] public BoardGame board;    
-    public float reachDistance = 0.15f;           
+    [HideInInspector] public BoardGame board;     
+    public float reachDistance = 0.15f;
+    public float health = 3f;
 
     NavMeshAgent agent;
     bool done;
+    public bool IsDone => done;
 
     void Start()
     {
@@ -24,12 +26,24 @@ public class GoblinMover : MonoBehaviour
 
         Vector3 a = transform.position;
         Vector3 b = target.position;
-        a.y = 0; b.y = 0;                          
+        a.y = 0; b.y = 0;
 
         if (Vector3.Distance(a, b) <= reachDistance)
         {
             done = true;
             if (board != null) board.OnGoblinReachedCrystal();
+            Destroy(gameObject);
+        }
+    }
+
+    public void TakeDamage(float amount)
+    {
+        if (done) return;
+        health -= amount;
+        if (health <= 0f)
+        {
+            done = true;
+            if (board != null) board.OnGoblinKilled(transform.position);
             Destroy(gameObject);
         }
     }
