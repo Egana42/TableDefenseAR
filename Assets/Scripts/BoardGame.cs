@@ -35,7 +35,12 @@ public class BoardGame : MonoBehaviour
     readonly List<Coin> coins = new List<Coin>();
 
     // ---------- Mesa real (modo automático) ----------
-    public GameObject treePrefab;          // opcional: tu árbol modelado
+    public GameObject treePrefab;          // opcional: un solo árbol para todo (se usa si las listas están vacías)
+    public GameObject[] outerTreePrefabs;  // tipos de árbol del anillo exterior (se elige uno al azar)
+    public GameObject[] innerTreePrefabs;  // tipos de árbol de los muros de dentro (si está vacía, usa los de fuera)
+    public float treeHeight = 0.08f;       // altura base de un árbol modelado (m); los de dentro usan innerTreeScale sobre esto
+    public float outerTreeScale = 1f;      // multiplicador de tamaño del anillo exterior
+    public float innerTreeScale = 0.7f;    // los de dentro, más bajitos
     public float treeBlockRadius = 0.015f;  // radio REAL que bloquea al goblin (el árbol puede verse mucho más grande)
     public float ringOffset = 0.08f;       // distancia del anillo de árboles al borde de la mesa; el mapa se diseña hasta el anillo
     public float treeSpacing = 0.07f;      // separación de los árboles del borde (m)
@@ -619,12 +624,12 @@ public class BoardGame : MonoBehaviour
                     {
                         Vector2 p = Vector2.Lerp(a, b, (float)t / n);
                         if (Vector2.Distance(p, pPos) < clearRadius || Vector2.Distance(p, cPos) < clearRadius) continue;
-                        AddTree(new Vector3(p.x, topY, p.y), false);
+                        AddTree(new Vector3(p.x, topY, p.y), true);
                     }
                 }
                 Vector2 last = WallPoint(wall[wall.Length - 1], fx, fz, sx, sz);
                 if (Vector2.Distance(last, pPos) >= clearRadius && Vector2.Distance(last, cPos) >= clearRadius)
-                    AddTree(new Vector3(last.x, topY, last.y), false);
+                    AddTree(new Vector3(last.x, topY, last.y), true);
             }
         }
 
@@ -654,7 +659,7 @@ public class BoardGame : MonoBehaviour
     {
         if (!inner)
             localPos += new Vector3(Random.Range(-0.01f, 0.01f), 0f, Random.Range(-0.01f, 0.01f));
-        GameObject tree = MakeTree(localPos, Random.Range(0.85f, 1.2f), inner);
+        GameObject tree = MakeTree(localPos, Random.Range(0.85f, 1.2f) * (inner ? innerTreeScale : outerTreeScale), inner);
         forest.Add(tree);
         if (inner) innerTrees.Add(tree);
     }
@@ -662,9 +667,22 @@ public class BoardGame : MonoBehaviour
     GameObject MakeTree(Vector3 localPos, float scale, bool inner)
     {
         GameObject tree;
-        if (treePrefab != null)
+        GameObject chosen = treePrefab;
+        GameObject[] list = (inner && innerTreePrefabs != null && innerTreePrefabs.Length > 0) ? innerTreePrefabs : outerTreePrefabs;
+        if (list != null && list.Length > 0) chosen = list[Random.Range(0, list.Length)];
+        if (chosen != null)
         {
-            tree = Instantiate(treePrefab);
+            tree = Instantiate(chosen);
+            // Se normaliza el tamaño: da igual lo grande que sea el modelo, mide treeHeight (m) de alto
+            var rends = tree.GetComponentsInChildren<Renderer>();
+            if (rends.Length > 0)
+            {
+                Bounds bb = rends[0].bounds;
+                for (int r = 1; r < rends.Length; r++) bb.Encapsulate(rends[r].bounds);
+                float rootS = tree.transform.localScale.x;
+                if (bb.size.y > 0.0001f && rootS > 0.0001f)
+                    scale *= treeHeight * rootS / bb.size.y;
+            }
         }
         else
         {
